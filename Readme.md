@@ -119,11 +119,11 @@ src/
 |   ├── Register.jsx    # Área de cadastro
 │   ├── StudentArea.jsx # Área do estudante
 │   ├── TeacherArea.jsx # Área do professor
-├── context/            # Um contexto global que permite compartilhar o conteúdo selecionado entre qualquer componente da aplicação sem precisar passar props.
+├── context/            # Um contexto global que permite compartilhar o conteúdo selecionado entre qualquer componente da aplicação sem precisar passar props
 ├── server/             # Backend Express
 │   └── server.js       # Servidor principal
-│   └── service/        # Serviços do Supabase
-|   └── routes/         # rota de upload em um servidor Express, correlaciona Docling usando fetch com o Supabase
+│   └── service/        # Serviços do Supabase e a API do Gemini
+|   └── routes/         # rota de upload em um servidor Express, correlaciona Docling usando fetch com o Supabase e limpeza do markdown
 ├── assets/             # Imagens e recursos
 ├── python              # Estrutura do Backend em Flask
 |   └── docling_service.py # Estrutura do Docling
@@ -141,3 +141,4 @@ Marcus Marinho- [GitHub](https://github.com/marcusmarinhob)
 ## Orientador do projeto:
 
 Sergio Natan- [GitHub](https://github.com/sergionatans)
+
