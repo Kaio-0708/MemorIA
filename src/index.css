@@ -25,6 +25,7 @@
   --ring: 220 100% 60%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 98%;
+  --background-image: url('./assets/background.png');
 }
 
 * {
@@ -33,11 +34,13 @@
 
 body {
   font-family: "Urbanist", sans-serif;
-  background: #0a3f94;
-  background-size: 100% 100%;
+  background-image: var(--background-image, url('/assets/background.jpg'));
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
   background-attachment: fixed;
-  min-height: 100vh;
-  color: hsl(var(--foreground));
+  min-height: 100dvh; 
+  color: hsl(var(--foreground, 220 15% 18%));
 }
 
 .gradient-text {
