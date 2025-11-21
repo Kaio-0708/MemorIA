@@ -15,6 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Navigation from "@/components/Navigation";
 import ImagemMemoria from "../assets/minha_logo.png";
+import AprendizadoPersonalizado from "../assets/aprendizado-personalizado.jpg";
+import ConteudoCompleto from "../assets/conteudo-completo.jpg";
+import Acompanhamento from "../assets/acompanhamento.jpg";
 
 const Home = () => {
   const features = [
@@ -171,7 +174,7 @@ const Home = () => {
           <div className="grid md:grid-cols-3 gap-6 mb-12">
             <div className="relative rounded-2xl overflow-hidden shadow-lg">
               <img
-                src={ImagemMemoria}
+                src={AprendizadoPersonalizado}
                 alt="Aprendizado personalizado"
                 className="w-full h-64 object-cover"
               />
@@ -181,7 +184,7 @@ const Home = () => {
             </div>
             <div className="relative rounded-2xl overflow-hidden shadow-lg">
               <img
-                src={ImagemMemoria}
+                src={ConteudoCompleto}
                 alt="Conteúdo completo e organizado"
                 className="w-full h-64 object-cover"
               />
@@ -191,7 +194,7 @@ const Home = () => {
             </div>
             <div className="relative rounded-2xl overflow-hidden shadow-lg">
               <img
-                src={ImagemMemoria}
+                src={Acompanhamento}
                 alt="Acompanhamento para pais e professores"
                 className="w-full h-64 object-cover"
               />
