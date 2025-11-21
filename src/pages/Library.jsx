@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -36,76 +36,49 @@ const Library = () => {
     "Inglês",
   ];
 
-  const content = [
-    {
-      id: 1,
-      title: "Frações e Números Decimais",
-      subject: "Matemática",
-      grade: "6º ano",
-      duration: "15 min",
-      difficulty: "Fácil",
-      rating: 4.8,
-      description: "Aprenda a trabalhar com frações e converter para decimais",
-      image: "https://images.unsplash.com/photo-1740062446976-94a8837e0dde?q=80&w=1171&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    },
-    {
-      id: 2,
-      title: "Análise Sintática Básica",
-      subject: "Português",
-      grade: "7º ano",
-      duration: "20 min",
-      difficulty: "Médio",
-      rating: 4.6,
-      description: "Entenda os termos essenciais da oração",
-      image: "https://plus.unsplash.com/premium_photo-1666739032615-ecbd14dfb543?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    },
-    {
-      id: 3,
-      title: "Sistema Digestório",
-      subject: "Ciências",
-      grade: "8º ano",
-      duration: "25 min",
-      difficulty: "Médio",
-      rating: 4.9,
-      description: "Como funciona a digestão no corpo humano",
-      image: "https://plus.unsplash.com/premium_photo-1723108858066-66b1bd834675?q=80&w=798&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    },
-    {
-      id: 4,
-      title: "Brasil Colonial",
-      subject: "História",
-      grade: "7º ano",
-      duration: "30 min",
-      difficulty: "Médio",
-      rating: 4.7,
-      description: "A colonização portuguesa no Brasil",
-      image: "https://plus.unsplash.com/premium_photo-1682125784386-d6571f1ac86a?q=80&w=908&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    },
-    {
-      id: 5,
-      title: "Equações do 1º Grau",
-      subject: "Matemática",
-      grade: "7º ano",
-      duration: "18 min",
-      difficulty: "Médio",
-      rating: 4.5,
-      description: "Resolva equações de primeiro grau passo a passo",
-      image: "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    },
-    {
-      id: 6,
-      title: "Clima e Vegetação",
-      subject: "Geografia",
-      grade: "6º ano",
-      duration: "22 min",
-      difficulty: "Fácil",
-      rating: 4.4,
-      description: "Os diferentes tipos de clima e vegetação do Brasil",
-      image: "https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    },
-  ];
+  const content = [];
 
-  const filteredContent = content.filter((item) => {
+  const [serverFiles, setServerFiles] = useState([]);
+  const [loadingServer, setLoadingServer] = useState(true);
+
+  useEffect(() => {
+    const carregar = async () => {
+      try {
+        setLoadingServer(true);
+        const res = await fetch("http://localhost:3001/api/files");
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json.success && Array.isArray(json.data)) {
+          const mapped = json.data.map((a) => ({
+            id: `srv-${a.id}`,
+            title: a.assunto || "Sem título",
+            subject: a.materia || "",
+            grade: a.turma || "",
+            duration: "5min",
+            difficulty: "Médio",
+            rating: 4.8,
+            description: a.detalhes || "",
+            image:
+              "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+            isMarkdown: !!a.markdown,
+            markdown: a.markdown,
+          }));
+          setServerFiles(mapped);
+        } else {
+          console.warn("Falha ao carregar arquivos do servidor:", json);
+        }
+      } catch (err) {
+        console.error("Erro ao buscar arquivos do servidor:", err);
+      } finally {
+        setLoadingServer(false);
+      }
+    };
+
+    carregar();
+  }, []);
+
+  const todosConteudos = [...content, ...serverFiles];
+
+  const filteredContent = todosConteudos.filter((item) => {
     const matchesSearch =
       item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.subject.toLowerCase().includes(searchTerm.toLowerCase());
@@ -279,7 +252,7 @@ const Library = () => {
 
                   <CardContent>
                     <div className="flex items-center text-white text-sm mb-4">
-                      <Clock className="w-4 h-4 mr-1" />
+           <Clock className="w-4 h-4 mr-1" />
                       {item.duration}
                     </div>
                     <Button

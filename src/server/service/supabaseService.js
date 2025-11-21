@@ -34,3 +34,32 @@ export const salvarArquivo = async ({
   console.log("Inserção bem-sucedida:", data);
   return { data, error: null };
 };
+
+export const pegarArquivosPorProfessor = async (professor_uid) => {
+  const { data, error } = await supabase
+    .from("arquivos")
+    .select("*")
+    .eq("professor_uid", professor_uid)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Erro ao buscar arquivos por professor:", error);
+    return { data: [], error };
+  }
+
+  return { data, error: null };
+}
+
+export const buscarArquivos = async () => {
+  const { data, error } = await supabase
+    .from("arquivos")
+    .select("id, assunto, turma, materia, detalhes, markdown, professor_uid, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Erro ao buscar arquivos no Supabase:", error);
+    return { data: [], error };
+  }
+
+  return { data, error: null };
+};

@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { FileText, Plus, User, Lock } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
-import { getAuth } from "firebase/auth";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const FileList = () => {
   const [fileList, setFileList] = useState([]);
@@ -15,6 +15,20 @@ const FileList = () => {
   const [materia, setMateria] = useState("");
   const [detalhes, setDetalhes] = useState("");
   const [arquivo, setArquivo] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const xhrRef = useRef(null);
+
+  const cancelUpload = () => {
+    if (xhrRef.current) {
+      xhrRef.current.abort();
+      xhrRef.current = null;
+      setUploading(false);
+      setUploadProgress(0);
+      setArquivo(null);
+      toast({ title: "Cancelado", description: "Upload cancelado pelo usuário." });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,38 +61,47 @@ const FileList = () => {
       formData.append("detalhes", detalhes);
       formData.append("professor_uid", user.uid);
 
-      const res = await fetch("http://localhost:3001/api/files/upload", {
-        method: "POST",
-        body: formData,
+      setUploading(true);
+      setUploadProgress(0);
+      const uploadPromise = new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhrRef.current = xhr;
+        xhr.open("POST", "http://localhost:3001/api/files/upload");
+
+        xhr.onabort = function () {
+          reject(new Error("Upload abortado"));
+        };
+
+        xhr.onerror = function () {
+          reject(new Error("Erro de rede durante o upload"));
+        };
+
+        xhr.send(formData);
       });
 
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok && data.success) {
+      try {
+        const data = await uploadPromise;
         toast({
           title: "Sucesso",
           description: "Arquivo enviado com sucesso!",
         });
-
-        const fileURL = URL.createObjectURL(arquivo);
-        const newFile = {
-          contentName: assunto,
-          classroom: turma,
-          subject: materia,
-          details: detalhes,
-          fileURL,
-        };
-        setFileList([...fileList, newFile]);
-
+        await carregarArquivos();
         setShowForm(false);
         setAssunto("");
         setTurma("");
         setMateria("");
         setDetalhes("");
         setArquivo(null);
-      } else {
-        const errorMsg = data.error || "Erro ao processar o PDF";
-        throw new Error(errorMsg);
+      } catch (err) {
+        console.error("Erro no upload (xhr):", err);
+        toast({ title: "Erro", description: err.message || "Erro no upload" });
+        setUploadProgress(0);
+      } finally {
+        setTimeout(() => {
+          setUploadProgress(0);
+          setUploading(false);
+          xhrRef.current = null;
+        }, 700);
       }
     } catch (error) {
       console.error("Erro no upload:", error);
@@ -88,6 +111,60 @@ const FileList = () => {
       });
     }
   };
+
+  const carregarArquivos = async (uid) => {
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      const professorUid = uid || (user && user.uid);
+      if (!professorUid) return;
+
+      const res = await fetch(
+        `http://localhost:3001/api/files?professor_uid=${professorUid}`
+      );
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.success && Array.isArray(json.data)) {
+        const ownerKeys = [
+          "professor_uid",
+          "professorUid",
+          "ownerId",
+          "userId",
+          "uid",
+          "created_by",
+        ];
+
+        const filtered = json.data.filter((a) =>
+          ownerKeys.some((k) => a[k] === professorUid)
+        );
+
+        const mapped = filtered.map((a) => ({
+          id: a.id,
+          contentName: a.assunto || "Sem título",
+          classroom: a.turma || "",
+          subject: a.materia || "",
+          details: a.detalhes || "",
+          markdown: a.markdown || null,
+          created_at: a.created_at,
+        }));
+        setFileList(mapped);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar arquivos do servidor:", err);
+    }
+  };
+
+  useEffect(() => {
+    const auth = getAuth();
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        carregarArquivos(user.uid);
+      } else {
+        setFileList([]);
+      }
+    });
+
+    return () => unsub();
+  }, []);
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -181,6 +258,21 @@ const FileList = () => {
                 className="h-12 rounded-full bg-white/40 text-[#153c4b] placeholder:text-[#153c4b]/70 border-none focus:ring-2 focus:ring-yellow-400"
               />
             </div>
+
+            {uploading && (
+              <div className="flex items-center justify-center space-x-4 px-2">
+                <div className="w-8 h-8 border-4 border-white/30 border-t-[#edbf21] rounded-full animate-spin" />
+                <p className="text-white text-sm">Enviando...</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-transparent text-white border-white/30"
+                  onClick={cancelUpload}
+                >
+                  Cancelar upload
+                </Button>
+              </div>
+            )}
 
             <Button
               type="submit"

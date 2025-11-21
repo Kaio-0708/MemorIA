@@ -2,7 +2,7 @@ import express from "express";
 import fetch from "node-fetch";
 import FormData from "form-data";
 import multer from "multer";
-import { salvarArquivo } from "../service/supabaseService.js";
+import { salvarArquivo, buscarArquivos, pegarArquivosPorProfessor } from "../service/supabaseService.js";
 import { cleanMarkdownInDatabase } from "../service/markdownCleaner.js";
 
 const router = express.Router();
@@ -65,6 +65,55 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   } catch (error) {
     console.error("Erro ao processar upload:", error);
     res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+router.get("/", async (req, res) => {
+  try {
+    const { professor_uid } = req.query;
+
+    if (professor_uid) {
+      const { data, error } = await pegarArquivosPorProfessor(professor_uid);
+      if (error) {
+        console.warn("pegarArquivosPorProfessor retornou erro:", error);
+        return res.json({ success: true, data: [] });
+      }
+
+      const mapped = data.map((a) => ({
+        id: a.id,
+        assunto: a.assunto,
+        turma: a.turma,
+        materia: a.materia,
+        detalhes: a.detalhes,
+        markdown: a.markdown,
+        professor_uid: a.professor_uid,
+        created_at: a.created_at,
+      }));
+
+      return res.json({ success: true, data: mapped });
+    }
+
+    const { data, error } = await buscarArquivos();
+    if (error) {
+      console.warn("buscarArquivos retornou erro:", error);
+      return res.json({ success: true, data: [] });
+    }
+
+    const mapped = data.map((a) => ({
+      id: a.id,
+      assunto: a.assunto,
+      turma: a.turma,
+      materia: a.materia,
+      detalhes: a.detalhes,
+      markdown: a.markdown,
+      professor_uid: a.professor_uid,
+      created_at: a.created_at,
+    }));
+
+    res.json({ success: true, data: mapped });
+  } catch (error) {
+    console.error("Erro ao buscar arquivos:", error);
+    res.json({ success: true, data: [] });
   }
 });
 
