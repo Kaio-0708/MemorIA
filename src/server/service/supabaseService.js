@@ -63,3 +63,17 @@ export const buscarArquivos = async () => {
 
   return { data, error: null };
 };
+
+ export const getMarkdownByAssunto = async (assunto) => {
+  if (!assunto) throw new Error("Assunto não informado.");
+  
+  const { data, error } = await supabase
+    .from("arquivos")
+    .select("markdown_limpo")
+    .eq("assunto", assunto)
+    .single();
+
+  if (error) throw error;
+  return data.markdown_limpo;
+  
+}
