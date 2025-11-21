@@ -6,6 +6,7 @@ import fetch from "node-fetch";
 import FormData from "form-data";
 import fileRoutes from "./routes/fileRoutes.js";
 import markdownRoutes from "./routes/markdownRoutes.js";
+import ragRoutes from "./routes/ragRoutes.js";
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ app.use(
 app.use(express.json());
 app.use("/api/files", fileRoutes);
 app.use("/api/markdown", markdownRoutes);
+app.use("/api/rag", ragRoutes);
 
 const upload = multer();
 
