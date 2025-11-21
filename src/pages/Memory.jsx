@@ -4,6 +4,7 @@ import Navigation from "../components/Navigation";
 import ImagemMemoria from "../assets/minha_logo.png";
 import { toast } from "@/components/ui/use-toast";
 import { useContent } from "@/context/ContentContext";
+import { generateWithContext } from "../server/service/geminiApi";
 
 const RotateCcw = () => <span>🔄</span>;
 const Check = () => <span>✓</span>;
@@ -12,6 +13,7 @@ const XErro = () => <span>❌</span>;
 export default function Memory() {
   const navigate = useNavigate();
   const { selectedContent } = useContent();
+
   const [questionCards, setQuestionCards] = useState([]);
   const [answerCards, setAnswerCards] = useState([]);
   const [selectedCards, setSelectedCards] = useState([]);
@@ -26,6 +28,10 @@ export default function Memory() {
   const [isRunning, setIsRunning] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
 
+  const [cardPairs, setCardPairs] = useState([]);
+
+  const [isLoadingCards, setIsLoadingCards] = useState(true);
+
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -39,60 +45,55 @@ export default function Memory() {
     }
   }, [selectedContent, navigate]);
 
-  const cardPairs = [
-    {
-      id: 1,
-      question: "O que diz a 1ª Lei de Newton?",
-      answer: "Lei da Inércia",
-      justification:
-        "A 1ª Lei afirma que um corpo em repouso tende a permanecer em repouso...",
-    },
-    {
-      id: 2,
-      question: "Qual a fórmula da velocidade média?",
-      answer: "Vm = ΔS/Δt",
-      justification: "A velocidade média é ΔS dividido por Δt.",
-    },
-    {
-      id: 3,
-      question: "Qual a forma de energia associada ao movimento?",
-      answer: "Energia cinética",
-      justification: "A energia cinética é a energia do movimento de um corpo.",
-    },
-    {
-      id: 4,
-      question: "O que é um corpo em queda livre?",
-      answer: "Um corpo sujeito apenas à gravidade",
-      justification: "Em queda livre, a única força atuante é a gravidade.",
-    },
-    {
-      id: 5,
-      question: "Como se chama a força que se opõe ao movimento?",
-      answer: "Atrito",
-      justification:
-        "A força de atrito se opõe ao movimento relativo entre superfícies.",
-    },
-    {
-      id: 6,
-      question: "Qual a unidade de medida da força no SI?",
-      answer: "Newton (N)",
-      justification:
-        "A unidade de força no SI é o Newton (N), homenagem a Isaac Newton.",
-    },
-    {
-      id: 7,
-      question: "Qual a fórmula da 2ª Lei de Newton?",
-      answer: "F = m.a",
-      justification: "A força resultante é o produto da massa pela aceleração.",
-    },
-    {
-      id: 8,
-      question: "Qual a 3ª Lei de Newton?",
-      answer: "Ação e Reação",
-      justification:
-        "Para toda ação, há uma reação de mesma intensidade e direção oposta.",
-    },
-  ];
+  useEffect(() => {
+    async function loadCards() {
+      if (!selectedContent) return;
+
+      setIsLoadingCards(true);
+
+      try {
+        const markdown = selectedContent.markdown;
+        const result = await generateWithContext("gerar cartas", markdown);
+
+        console.log("CARTAS RECEBIDAS:", result);
+
+        let cleaned = result
+          .replace(/```json/g, "")
+          .replace(/```/g, "")
+          .trim();
+
+        let cards;
+
+        try {
+          cards = JSON.parse(cleaned);
+        } catch (err) {
+          console.error("Erro ao converter JSON:", err);
+          setIsLoadingCards(false);
+          return;
+        }
+
+        if (Array.isArray(cards) && cards.length > 0) {
+          setCardPairs(cards);
+        } else {
+          console.error("Nenhum par de cartas gerado.");
+          toast({
+            title: "Erro ao gerar cartas ❌",
+            description: "Geração vazia.",
+          });
+        }
+      } catch (error) {
+        console.error("Erro ao gerar cartas:", error);
+        toast({
+          title: "Erro ao gerar cartas ❌",
+          description: "Por favor, tente novamente.",
+        });
+      } finally {
+        setIsLoadingCards(false);
+      }
+    }
+
+    loadCards();
+  }, [selectedContent]);
 
   useEffect(() => {
     if (score === 0) return;
@@ -123,10 +124,14 @@ export default function Memory() {
   );
 
   useEffect(() => {
-    initializeGame();
-  }, []);
+    if (cardPairs.length > 0) {
+      initializeGame();
+    }
+  }, [cardPairs]);
 
   const initializeGame = () => {
+    if (!cardPairs.length) return;
+
     const questions = [];
     const answers = [];
 
@@ -307,6 +312,7 @@ export default function Memory() {
   return (
     <div className="min-h-screen relative">
       <Navigation />
+
       {showErrorToast && (
         <div className="fixed top-6 right-6 z-50 animate-fadeInOut">
           <div className="flex items-center gap-3 bg-red-600 text-white px-4 py-3 rounded-lg shadow-lg">
@@ -363,140 +369,152 @@ export default function Memory() {
             </div>
           )}
 
-          <div className="max-w-4xl mx-auto">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div
-                className={`flex items-center gap-4 p-3 rounded-2xl shadow-lg border border-[#0d7377] bg-white/90 transition-transform duration-200 ${
-                  scorePulse ? "scale-105" : "scale-100"
-                }`}
-              >
-                <div className="w-12 h-12 flex items-center justify-center rounded-full bg-[#14a098] text-white text-xl font-bold shadow-inner">
-                  <Check />
-                </div>
-                <div>
-                  <div className="text-sm text-slate-500">Pontuação</div>
-                  <div className="text-2xl font-extrabold text-[#153c4b]">
-                    {score}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-4 items-center">
-                <div className="p-3 rounded-xl bg-white/90 border shadow-sm text-sm text-[#0d7377]">
-                  <div className="font-medium">Tentativas</div>
-                  <div className="text-lg font-semibold">{attempts}</div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-white/90 border shadow-sm text-sm text-[#0d7377]">
-                  <div className="font-medium">Tempo</div>
-                  <div className="text-lg font-semibold">
-                    {formatTime(time)}
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-white/90 border shadow-sm text-sm text-[#0d7377]">
-                  <div className="font-medium">Pares</div>
-                  <div className="text-lg font-semibold">
-                    {matchedPairs.length}/{cardPairs.length}
-                  </div>
-                </div>
-              </div>
+          {isLoadingCards && (
+            <div className="flex flex-col items-center justify-center py-16 text-[#153c4b]">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#14a098] border-t-transparent"></div>
+              <p className="mt-4 text-xl font-semibold">Carregando cartas...</p>
             </div>
+          )}
 
-            <div className="mt-4">
-              <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden border border-slate-200">
+          {!isLoadingCards && (
+            <div className="max-w-4xl mx-auto">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div
-                  role="progressbar"
-                  aria-valuenow={progressPercent}
-                  className="h-full rounded-full transition-all duration-700 ease-out"
-                  style={{
-                    width: `${progressPercent}%`,
-                    background: "linear-gradient(90deg,#14a098,#edbf21)",
-                  }}
-                />
+                  className={`flex items-center gap-4 p-3 rounded-2xl shadow-lg border border-[#0d7377] bg-white/90 transition-transform duration-200 ${
+                    scorePulse ? "scale-105" : "scale-100"
+                  }`}
+                >
+                  <div className="w-12 h-12 flex items-center justify-center rounded-full bg-[#14a098] text-white text-xl font-bold shadow-inner">
+                    <Check />
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">Pontuação</div>
+                    <div className="text-2xl font-extrabold text-[#153c4b]">
+                      {score}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 items-center">
+                  <div className="p-3 rounded-xl bg-white/90 border shadow-sm text-sm text-[#0d7377]">
+                    <div className="font-medium">Tentativas</div>
+                    <div className="text-lg font-semibold">{attempts}</div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-white/90 border shadow-sm text-sm text-[#0d7377]">
+                    <div className="font-medium">Tempo</div>
+                    <div className="text-lg font-semibold">
+                      {formatTime(time)}
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-white/90 border shadow-sm text-sm text-[#0d7377]">
+                    <div className="font-medium">Pares</div>
+                    <div className="text-lg font-semibold">
+                      {matchedPairs.length}/{cardPairs.length}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between text-xs text-slate-500 mt-2">
-                <span>Progresso</span>
-                <span>{progressPercent}%</span>
+
+              <div className="mt-4">
+                <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden border border-slate-200">
+                  <div
+                    role="progressbar"
+                    aria-valuenow={progressPercent}
+                    className="h-full rounded-full transition-all duration-700 ease-out"
+                    style={{
+                      width: `${progressPercent}%`,
+                      background: "linear-gradient(90deg,#14a098,#edbf21)",
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-slate-500 mt-2">
+                  <span>Progresso</span>
+                  <span>{progressPercent}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {isLoadingCards ? null : (
+          <>
+            {isGameComplete && (
+              <div className="text-center mb-6">
+                <div className="text-white p-6 rounded-lg inline-block shadow-lg bg-[#14a098]">
+                  <h2 className="text-3xl font-bold mb-2">
+                    🎉 Parabéns! Você completou o jogo!
+                  </h2>
+                  <p className="text-lg">
+                    Pontuação: {score} | Tempo: {formatTime(time)} |
+                    Tentativas: {attempts}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {justification && (
+              <div className="text-center mb-6">
+                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-md relative max-w-4xl mx-auto">
+                  <strong className="font-bold">Curiosidade: </strong>
+                  <span>{justification}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+              <div>
+                <h2 className="text-2xl font-bold bg-[#14a098] text-white text-center p-3 rounded-lg mb-4">
+                  ❓ PERGUNTAS
+                </h2>
+                <div className="grid grid-cols-2 gap-4">
+                  {questionCards.map(renderCard)}
+                </div>
               </div>
 
+              <div>
+                <h2 className="text-2xl font-bold bg-[#f39c12] text-white text-center p-3 rounded-lg mb-4">
+                  💡 RESPOSTAS
+                </h2>
+                <div className="grid grid-cols-2 gap-4">
+                  {answerCards.map(renderCard)}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {isGameComplete && (
-          <div className="text-center mb-6">
-            <div className="text-white p-6 rounded-lg inline-block shadow-lg bg-[#14a098]">
-              <h2 className="text-3xl font-bold mb-2">
-                🎉 Parabéns! Você completou o jogo!
-              </h2>
-              <p className="text-lg">
-                Pontuação: {score} | Tempo: {formatTime(time)} | Tentativas:{" "}
-                {attempts}
-              </p>
+            <div className="text-center space-y-4">
+              <div className="flex justify-center gap-8">
+                <button
+                  onClick={() =>
+                    toast({
+                      title: "💾 Salvar Jogo",
+                      description:
+                        "🚧 Esta funcionalidade ainda não está implementada — mas em breve estará disponível! 🚀",
+                    })
+                  }
+                  className="px-6 py-3 text-white rounded-full font-semibold flex items-center gap-2 shadow-lg bg-[#14a098] hover:opacity-90 transition-transform duration-300 hover:scale-105"
+                >
+                  💾 Salvar Jogo
+                </button>
+
+                <button
+                  onClick={resetGame}
+                  className="px-6 py-3 text-white rounded-full font-semibold flex items-center gap-2 shadow-lg bg-[#f39c12] hover:opacity-90 transition-transform duration-300 hover:scale-105"
+                >
+                  <RotateCcw /> Novo Jogo
+                </button>
+              </div>
+
+              <div className="text-sm max-w-md mx-auto bg-white/60 p-4 rounded-lg shadow-lg text-[#021d49]">
+                <p className="font-medium mb-2">Como jogar:</p>
+                <p>• Clique nas cartas para virá-las</p>
+                <p>• Encontre os pares de pergunta e resposta</p>
+                <p>• O cronômetro começa na sua primeira jogada!</p>
+              </div>
             </div>
-          </div>
+          </>
         )}
-
-        {justification && (
-          <div className="text-center mb-6">
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-md relative max-w-4xl mx-auto">
-              <strong className="font-bold">Curiosidade: </strong>
-              <span>{justification}</span>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
-          <div>
-            <h2 className="text-2xl font-bold bg-[#14a098] text-white text-center p-3 rounded-lg mb-4">
-              ❓ PERGUNTAS
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              {questionCards.map(renderCard)}
-            </div>
-          </div>
-
-          <div>
-            <h2 className="text-2xl font-bold bg-[#f39c12] text-white text-center p-3 rounded-lg mb-4">
-              💡 RESPOSTAS
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              {answerCards.map(renderCard)}
-            </div>
-          </div>
-        </div>
-
-        <div className="text-center space-y-4">
-          <div className="flex justify-center gap-8">
-            <button
-              onClick={() =>
-                toast({
-                  title: "💾 Salvar Jogo",
-                  description:
-                    "🚧 Esta funcionalidade ainda não está implementada—mas não se preocupe! Em breve estará disponível! 🚀",
-                })
-              }
-              className="px-6 py-3 text-white rounded-full font-semibold flex items-center gap-2 shadow-lg bg-[#14a098] hover:opacity-90 transition-transform duration-300 hover:scale-105"
-            >
-              💾 Salvar Jogo
-            </button>
-
-            <button
-              onClick={resetGame}
-              className="px-6 py-3 text-white rounded-full font-semibold flex items-center gap-2 shadow-lg bg-[#f39c12] hover:opacity-90 transition-transform duration-300 hover:scale-105"
-            >
-              <RotateCcw /> Novo Jogo
-            </button>
-          </div>
-
-          <div className="text-sm max-w-md mx-auto bg-white/60 p-4 rounded-lg shadow-lg text-[#021d49]">
-            <p className="font-medium mb-2">Como jogar:</p>
-            <p>• Clique nas cartas para virá-las</p>
-            <p>• Encontre os pares de pergunta e resposta</p>
-            <p>• O cronômetro começa na sua primeira jogada!</p>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -4,47 +4,6 @@
  * @returns {Promise<string|null>}
  */
 
-export async function generateContent(prompt, model = "gemini-2.0-flash") {
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-
-  const payload = {
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.7,
-    },
-  };
-
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": apiKey,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      const msg = data?.error?.message || `${res.status} ${res.statusText}`;
-      throw new Error(msg);
-    }
-
-    const text =
-      data?.candidates?.[0]?.content?.parts
-        ?.map((p) => p?.text)
-        ?.filter(Boolean)
-        ?.join("\n") ?? null;
-
-    return text;
-  } catch (err) {
-    console.error("Erro ao chamar Gemini:", err);
-    throw err;
-  }
-}
 
 export async function generateWithContext(pergunta, markdown) {
   const prompt = `Você é o MemorIA, um tutor virtual que cria cartas de memória educativas.
@@ -80,11 +39,24 @@ ${markdown}
 ---  
 Agora, gere os 8 pares de perguntas e respostas seguindo estritamente estas instruções.`;
 
-  const resposta = await generateContent(prompt);
   try {
-    return JSON.parse(resposta);
+    
+    const res = await fetch("http://localhost:3001/api/gemini", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prompt }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Erro na API: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.result || "";
   } catch (err) {
-    console.error("Erro ao parsear resposta da Gemini:", resposta);
-    return [];
+    console.error("Erro ao chamar backend:", err);
+    return "";
   }
 }

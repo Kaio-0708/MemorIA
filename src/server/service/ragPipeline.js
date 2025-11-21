@@ -1,4 +1,4 @@
-import { generateWithContext } from "./geminiService.js";
+import { generateWithContext } from "./geminiApi.js";
 import { getMarkdownByAssunto } from "./supabaseService.js";
 
 export async function ragPipeline(assunto, pergunta){
