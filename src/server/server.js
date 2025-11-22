@@ -6,7 +6,6 @@ import fetch from "node-fetch";
 import FormData from "form-data";
 import fileRoutes from "./routes/fileRoutes.js";
 import markdownRoutes from "./routes/markdownRoutes.js";
-import ragRoutes from "./routes/ragRoutes.js";
 
 dotenv.config();
 
@@ -20,7 +19,6 @@ app.use(
 app.use(express.json());
 app.use("/api/files", fileRoutes);
 app.use("/api/markdown", markdownRoutes);
-app.use("/api/rag", ragRoutes);
 
 const upload = multer();
 
@@ -55,6 +53,47 @@ app.post("/api/files/upload", upload.single("file"), async (req, res) => {
     res.status(500).json({ error: "Erro ao processar o PDF" });
   }
 });
+
+app.post("/api/gemini", async (req, res) => {
+  const { prompt, model = "gemini-2.0-flash" } = req.body;
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+    const payload = {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.7 },
+    };
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(400).json({ error: data.error || "Erro no Gemini" });
+    }
+
+    const text =
+      data?.candidates?.[0]?.content?.parts
+        ?.map((p) => p.text)
+        ?.join("\n") ?? null;
+
+    res.json({ ok: true, result: text });
+  } catch (err) {
+    console.error("Erro ao chamar Gemini:", err);
+    res.status(500).json({ error: "Erro interno ao chamar Gemini" });
+  }
+});
+
 
 //export default app;
 app.listen(3001, () => console.log("Servidor rodando na porta 3001"));

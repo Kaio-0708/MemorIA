@@ -10,23 +10,31 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 const FileList = () => {
   const [fileList, setFileList] = useState([]);
   const [showForm, setShowForm] = useState(false);
+
   const [assunto, setAssunto] = useState("");
   const [turma, setTurma] = useState("");
   const [materia, setMateria] = useState("");
   const [detalhes, setDetalhes] = useState("");
   const [arquivo, setArquivo] = useState(null);
+
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
+
   const xhrRef = useRef(null);
 
   const cancelUpload = () => {
     if (xhrRef.current) {
       xhrRef.current.abort();
       xhrRef.current = null;
+
       setUploading(false);
       setUploadProgress(0);
       setArquivo(null);
-      toast({ title: "Cancelado", description: "Upload cancelado pelo usuário." });
+
+      toast({
+        title: "Cancelado",
+        description: "Upload cancelado pelo usuário.",
+      });
     }
   };
 
@@ -63,51 +71,70 @@ const FileList = () => {
 
       setUploading(true);
       setUploadProgress(0);
+
       const uploadPromise = new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhrRef.current = xhr;
+
         xhr.open("POST", "http://localhost:3001/api/files/upload");
 
-        xhr.onabort = function () {
-          reject(new Error("Upload abortado"));
+        xhr.upload.onprogress = function (event) {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(percent);
+          }
         };
 
-        xhr.onerror = function () {
-          reject(new Error("Erro de rede durante o upload"));
+        xhr.onload = function () {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(JSON.parse(xhr.responseText || "{}"));
+          } else {
+            reject(
+              new Error(
+                `Erro ao enviar arquivo: ${xhr.status} - ${xhr.statusText}`
+              )
+            );
+          }
         };
+
+        xhr.onerror = () => reject(new Error("Erro de rede durante o upload"));
+        xhr.onabort = () => reject(new Error("Upload abortado"));
 
         xhr.send(formData);
       });
 
       try {
-        const data = await uploadPromise;
+        await uploadPromise;
+
         toast({
           title: "Sucesso",
           description: "Arquivo enviado com sucesso!",
         });
+
         await carregarArquivos();
+
         setShowForm(false);
         setAssunto("");
         setTurma("");
         setMateria("");
         setDetalhes("");
         setArquivo(null);
+
       } catch (err) {
-        console.error("Erro no upload (xhr):", err);
-        toast({ title: "Erro", description: err.message || "Erro no upload" });
-        setUploadProgress(0);
+        toast({
+          title: "Erro",
+          description: err.message || "Erro no upload",
+        });
+
       } finally {
-        setTimeout(() => {
-          setUploadProgress(0);
-          setUploading(false);
-          xhrRef.current = null;
-        }, 700);
+        setUploading(false);
+        setUploadProgress(0);
+        xhrRef.current = null;
       }
     } catch (error) {
-      console.error("Erro no upload:", error);
       toast({
         title: "Erro",
-        description: error.message || "Não foi possível enviar o arquivo.",
+        description: error.message || "Erro inesperado",
       });
     }
   };
@@ -123,6 +150,7 @@ const FileList = () => {
         `http://localhost:3001/api/files?professor_uid=${professorUid}`
       );
       const json = await res.json().catch(() => ({}));
+
       if (res.ok && json.success && Array.isArray(json.data)) {
         const ownerKeys = [
           "professor_uid",
@@ -146,130 +174,116 @@ const FileList = () => {
           markdown: a.markdown || null,
           created_at: a.created_at,
         }));
+
         setFileList(mapped);
       }
     } catch (err) {
-      console.error("Erro ao carregar arquivos do servidor:", err);
+      console.error("Erro ao carregar arquivos:", err);
     }
   };
 
   useEffect(() => {
     const auth = getAuth();
     const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        carregarArquivos(user.uid);
-      } else {
-        setFileList([]);
-      }
+      if (user) carregarArquivos(user.uid);
+      else setFileList([]);
     });
 
     return () => unsub();
   }, []);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.5 }}
-    >
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
       <Card className="glass-effect" style={{ backgroundColor: "#153c4b" }}>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-3xl font-bold flex items-center gap-2 text-white">
             <FileText className="w-6 h-6 text-[#edbf21]" />
             Seus arquivos
           </CardTitle>
+
           <Button
             variant="outline"
-            size="md"
-            className="bg-[#edbf21] border-2 border-[#edbf21] text-[#153c4b] text-sm sm:text-base px-6 py-2 font-bold rounded-full flex items-center justify-center hover:scale-105 hover:bg-[#f5d64f] transition-transform duration-300 w-auto mt-2"
+            className="bg-[#edbf21] border-2 border-[#edbf21] text-[#153c4b] font-bold rounded-full hover:scale-105 transition"
             onClick={() => setShowForm(!showForm)}
           >
-            <Plus className="w-4 h-4 mr-1" />
-            Novo arquivo
+            <Plus className="w-4 h-4 mr-1" /> Novo arquivo
           </Button>
         </CardHeader>
 
         {showForm && (
           <form onSubmit={handleSubmit} className="p-4 space-y-4">
             <div>
-              <label className="text-sm font-medium mb-2 block text-white">
-                Assunto
-              </label>
+              <label className="text-sm font-medium text-white">Assunto</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-white" />
                 <Input
                   value={assunto}
                   onChange={(e) => setAssunto(e.target.value)}
                   placeholder="Nome do conteúdo"
-                  className="pl-10 h-12 rounded-full bg-white/40 text-[#153c4b] placeholder:text-[#153c4b]/70 border-none focus:ring-2 focus:ring-yellow-400"
+                  className="pl-10 h-12 rounded-full bg-white/40 text-[#153c4b]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block text-white">
-                Turma
-              </label>
+              <label className="text-sm font-medium text-white">Turma</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-white" />
                 <Input
                   value={turma}
                   onChange={(e) => setTurma(e.target.value)}
-                  placeholder="Ex: 6 Ano B"
-                  className="pl-10 h-12 rounded-full bg-white/40 text-[#153c4b] placeholder:text-[#153c4b]/70 border-none focus:ring-2 focus:ring-yellow-400"
+                  placeholder="Ex: 7º Ano B"
+                  className="pl-10 h-12 rounded-full bg-white/40 text-[#153c4b]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block text-white">
-                Matéria
-              </label>
+              <label className="text-sm font-medium text-white">Matéria</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-white" />
                 <Input
                   value={materia}
                   onChange={(e) => setMateria(e.target.value)}
                   placeholder="Ex: Matemática"
-                  className="pl-10 h-12 rounded-full bg-white/40 text-[#153c4b] placeholder:text-[#153c4b]/70 border-none focus:ring-2 focus:ring-yellow-400"
+                  className="pl-10 h-12 rounded-full bg-white/40 text-[#153c4b]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block text-white">
-                Detalhes
-              </label>
+              <label className="text-sm font-medium text-white">Detalhes</label>
               <Input
                 value={detalhes}
                 onChange={(e) => setDetalhes(e.target.value)}
                 placeholder="Descrição do arquivo"
-                className="h-12 rounded-full bg-white/40 text-[#153c4b] placeholder:text-[#153c4b]/70 border-none focus:ring-2 focus:ring-yellow-400"
+                className="h-12 rounded-full bg-white/40 text-[#153c4b]"
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block text-white">
+              <label className="text-sm font-medium text-white">
                 Arquivo PDF
               </label>
               <Input
                 type="file"
                 accept="application/pdf"
                 onChange={(e) => setArquivo(e.target.files[0])}
-                className="h-12 rounded-full bg-white/40 text-[#153c4b] placeholder:text-[#153c4b]/70 border-none focus:ring-2 focus:ring-yellow-400"
+                className="h-12 rounded-full bg-white/40 text-[#153c4b]"
               />
             </div>
 
             {uploading && (
               <div className="flex items-center justify-center space-x-4 px-2">
                 <div className="w-8 h-8 border-4 border-white/30 border-t-[#edbf21] rounded-full animate-spin" />
-                <p className="text-white text-sm">Enviando...</p>
+                <p className="text-white text-sm">Enviando... {uploadProgress}%</p>
                 <Button
                   variant="outline"
                   size="sm"
                   className="bg-transparent text-white border-white/30"
                   onClick={cancelUpload}
                 >
-                  Cancelar upload
+                  Cancelar
                 </Button>
               </div>
             )}
@@ -277,8 +291,7 @@ const FileList = () => {
             <Button
               type="submit"
               size="lg"
-              className="bg-[#153c4b]  text-[#edbf21] text-2xl sm:text-2xl px-8 sm:px-16 py-4 sm:py-6 font-bold rounded-full flex items-center justify-center 
-             hover:bg-[#edbf21] hover:text-[#153c4b] hover:scale-105 transition duration-300 mx-auto"
+              className="bg-[#153c4b] text-[#edbf21] font-bold rounded-full hover:bg-[#edbf21] hover:text-[#153c4b] transition mx-auto px-12 py-4 text-xl"
             >
               Enviar
             </Button>
@@ -297,21 +310,18 @@ const FileList = () => {
                 </div>
               </div>
 
-              <div className="flex space-x-2 mt-3">
-                <Button
-                  variant="outline"
-                  size="md"
-                  className="bg-[#edbf21] border-2 border-[#edbf21] text-[#153c4b] px-6 py-2 font-bold rounded-full hover:scale-105 hover:bg-[#f5d64f] transition-transform duration-300"
-                  onClick={() =>
-                    toast({
-                      title: "Detalhes do arquivo",
-                      description: file.details,
-                    })
-                  }
-                >
-                  Ver Detalhes
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                className="bg-[#edbf21] text-[#153c4b] font-bold rounded-full hover:scale-105 transition"
+                onClick={() =>
+                  toast({
+                    title: "Detalhes do arquivo",
+                    description: file.details,
+                  })
+                }
+              >
+                Ver detalhes
+              </Button>
             </div>
           ))}
         </CardContent>
