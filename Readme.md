@@ -122,7 +122,7 @@ src/
 ├── context/            # Um contexto global que permite compartilhar o conteúdo selecionado entre qualquer componente da aplicação sem precisar passar props.
 ├── server/             # Backend Express
 │   └── server.js       # Servidor principal
-│   └── service/        # Serviços do Supabase
+│   └── service/        # Serviços do Supabase, limpeza de markdown, Rag e Api do Gemini.
 |   └── routes/         # rota de upload em um servidor Express, correlaciona Docling usando fetch com o Supabase
 ├── assets/             # Imagens e recursos
 ├── python              # Estrutura do Backend em Flask
@@ -141,3 +141,4 @@ Marcus Marinho- [GitHub](https://github.com/marcusmarinhob)
 ## Orientador do projeto:
 
 Sergio Natan- [GitHub](https://github.com/sergionatans)
+
