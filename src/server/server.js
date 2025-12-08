@@ -55,7 +55,7 @@ app.post("/api/files/upload", upload.single("file"), async (req, res) => {
 });
 
 app.post("/api/gemini", async (req, res) => {
-  const { prompt, model = "gemini-2.0-flash" } = req.body;
+  const { prompt, model = "gemini-2.5-flash-lite" } = req.body;
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;

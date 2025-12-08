@@ -1,6 +1,6 @@
 /**
  * @param {string} prompt
- * @param {string} [model="gemini-2.0-flash"]
+ * @param {string} [model="gemini-2.5-flash-lite"]
  * @returns {Promise<string|null>}
  */
 
